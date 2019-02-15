@@ -1,0 +1,273 @@
+---
+title: "Homework 1"
+author: "Krzysztof Leszek"
+date: "2/10/2019"
+output:
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Objective: Implementation of kNN algorithm for prediction of employee income level (classification)
+
+Data Set: IBM HR Employee Data (https://github.com/leszekk/ML_with_R/blob/master/HW1/EmployeeData.csv)
+
+Data Source: Kaggle.com
+
+Outcome Variable: IncomeLevel = {High, Low}
+
+### Initial Setup
+
+#### 1. Loading Packages/Libraires needed for execution
+
+```{r warning = FALSE, message=FALSE}
+library(class) # leaverage implementation of k-NN alghoritm from the class package
+library(caret) # leaverage caret library for one-hot encoding of categorical variables
+library(gmodels) # leaverage gmodels library for model performance evaluation (CrossTable)
+```
+
+
+#### 2. Config Items
+
+```{r}
+working_directory <- "/_My_Local/Projects/COMPSCI X460/Lesson_2"
+file_name <- "EmployeeData.csv"
+setwd(working_directory)  # Set working directory
+```
+  
+  
+### Fetch Source Data
+
+```{r}
+source_data <- read.csv(file_name, stringsAsFactors = FALSE)
+str(source_data)
+```
+
+
+###  Prepare Data
+
+####  Drop variables that will not contribute to the objective
+
+Drop variables having either a single value for all records or unique value for all records as they will not  contribute to KNN prediction
+
+```{r}
+# Function used to identify and drop veriables
+dropMininglessVariables <- function(data_set) {
+  columns <- names(data_set)
+  prep_data_set <- data_set
+  
+  for (column in columns) {
+    
+    # Drop if column has only one value for all records 
+    if (dim(table(data_set[,column])) == 1) {
+      cat("\n => Dropping column ", column, " (column contains single value for all records)")
+      prep_data_set <- prep_data_set[ , !(names(prep_data_set) %in% column)]
+      
+    } else if (dim(table(data_set[,column])) == nrow(data_set)) {
+      # Drop if column has different values for all records 
+      cat("\n => Dropping ", column, " (column contains unique values for all records)")
+      prep_data_set <- prep_data_set[ , !(names(prep_data_set) %in% column)]
+    } 
+  }
+  
+  return(prep_data_set)
+}
+
+# Execute function above & drop meaningless variables
+source_data <- dropMininglessVariables(source_data)
+# Display veriables post drop
+str(source_data)
+```
+
+
+#### Code outcome feature as factor (required by k-NN)
+
+```{r}
+source_data$IncomeLevel <- factor(source_data$IncomeLevel)
+```
+
+
+####  Code other variables that are categotical in nature to factor
+
+```{r}
+source_data$Education <- factor(source_data$Education)
+source_data$EnvironmentSatisfaction  <- factor(source_data$EnvironmentSatisfaction)
+source_data$JobLevel <- factor(source_data$JobLevel)
+source_data$StockOptionLevel <- factor(source_data$StockOptionLevel)
+```
+
+
+####  One-hot encode all categotical (prediction) features 
+
+```{r}
+outcomeName <- c("IncomeLevel")
+outcomes <- source_data[ , outcomeName]
+# One-hot encode all other categotical features 
+dmy <- dummyVars(" ~ .", data = source_data[ , !names(source_data) %in% outcomeName])
+predictors <- data.frame(predict(dmy, newdata = source_data))
+str(predictors)
+```
+
+
+####  Visualize predicting numerical features to determine distribution
+
+Figure 1
+
+```{r}
+# Graph 1
+par(mfrow=c(3,2))
+par(mar=c(2.5,2.5,2.5,2.5), font.axis = 2, font.lab = 2)
+#graphics.off()
+hist(predictors$Age, main = "Histogram of Age", xlab = "Age")
+hist(predictors$DailyRate, main = "Histogram of DailyRate", xlab = "DailyRate")
+hist(predictors$DistanceFromHome, main = "Histogram of DistFromHome", xlab = "DistFromHome")
+hist(predictors$HourlyRate, main = "Histogram of HourlyRate", xlab = "HourlyRate")
+hist(predictors$JobInvolvement, main = "Histogram of JobInvolvement", xlab = "JobInvolvement")
+hist(predictors$MonthlyIncome, main = "Histogram of MonthlyIncome", xlab = "MonthlyIncome")
+```
+
+Figure 2
+
+```{r}
+# Graph 2
+par(mfrow=c(4,2))
+par(mar=c(2.5,2.5,2.5,2.5), font.axis = 2, font.lab = 2)
+hist(predictors$MonthlyRate, main = "Histogram of MonthlyRate", xlab = "MonthlyRate")
+hist(predictors$DailyRate, main = "Histogram of DailyRate", xlab = "DailyRate")
+hist(predictors$NumCompaniesWorked, main = "Histogram of NumCompaniesWorked", xlab = "NumCompaniesWorked")
+hist(predictors$PercentSalaryHike, main = "Histogram of PercentSalaryHike", xlab = "PercentSalaryHike")
+hist(predictors$PerformanceRating, main = "Histogram of PerformanceRating", xlab = "PerformanceRating")
+hist(predictors$RelationshipSatisfaction, main = "Histogram of RelSatisfaction", xlab = "RelSatisfaction")
+hist(predictors$TotalWorkingYears, main = "Histogram of TotalWorkingYears", xlab = "TotalWorkingYears")
+```
+
+Figure 3
+
+```{r}
+# Graph 3
+par(mfrow=c(3,2))
+par(mar=c(2.5,2.5,2.5,2.5), font.axis = 2, font.lab = 2)
+hist(predictors$TrainingTimesLastYear, main = "Histogram of TrainingTimesLastYear", xlab = "TrainingTimesLastYear")
+hist(predictors$WorkLifeBalance, main = "Histogram of WorkLifeBalance", xlab = "WorkLifeBalance")
+hist(predictors$YearsAtCompany, main = "Histogram of YearsAtCompany", xlab = "YearsAtCompany")
+hist(predictors$YearsInCurrentRole, main = "Histogram of YearsInCurrentRole", xlab = "YearsInCurrentRole")
+hist(predictors$YearsSinceLastPromotion, main = "Histogram of YearsSinceLastPromotion", xlab = "YearsSinceLastPromotion")
+hist(predictors$YearsWithCurrManager, main = "Histogram of YearsWithCurrManager", xlab = "YearsWithCurrManager")
+```
+
+
+#### Considering distribution apply min/max normalization on numeric features
+
+```{r}
+features_to_normalize <- c("Age",
+                           "DailyRate",
+                           "DistanceFromHome",
+                           "HourlyRate",
+                           "JobInvolvement",
+                           "JobSatisfaction",
+                           "MonthlyIncome",
+                           "MonthlyRate",
+                           "NumCompaniesWorked",
+                           "PercentSalaryHike",
+                           "PerformanceRating",
+                           "RelationshipSatisfaction",
+                           "TotalWorkingYears",
+                           "TrainingTimesLastYear",
+                           "WorkLifeBalance",
+                           "YearsAtCompany",
+                           "YearsInCurrentRole",
+                           "YearsSinceLastPromotion",
+                           "YearsWithCurrManager"
+)
+
+# Function performing normalization - method (min/max)
+normalize <- function(x) {
+  return ((x - min(x)) / (max(x) - min(x)))
+}
+
+# Apply normalization and prepare predictor dataset
+# Method (min/max)
+predictors_normalized <- as.data.frame(lapply(predictors[features_to_normalize], normalize))
+predictors[ , features_to_normalize] <- predictors_normalized
+
+# Append outcome
+source_data_prepared <-cbind(predictors, IncomeLevel=outcomes)
+str(source_data_prepared)
+```
+
+
+###  Define training and testing set
+
+Split 80/20 split for training / testing
+
+```{r}
+set.seed(1234)   
+indicator <- sample(2, nrow(source_data_prepared), replace = T, prob = c(0.80, 0.20))  # 80/20 for training  /testing
+
+# Training dataset
+training_dataset <- source_data_prepared[indicator == 1,]
+training_dataset_outcome <- training_dataset$IncomeLevel   # store outcome feature as factor vector (required by k-NN)
+training_dataset <- training_dataset[ , !(names(training_dataset) %in% "IncomeLevel")]
+# Print % of outcomes in training set
+round(prop.table(table(training_dataset_outcome)) * 100, digits = 1)
+```
+
+Testing dataset
+
+```{r}
+# Testing dataset
+testing_dataset <- source_data_prepared[indicator == 2, ]
+testing_dataset_outcome <- testing_dataset$IncomeLevel # store outcome feature as factor vector (required by k-NN)
+testing_dataset <- testing_dataset[ , !(names(testing_dataset) %in% "IncomeLevel")]
+# Print % of outcomes in testing set
+round(prop.table(table(testing_dataset_outcome)) * 100, digits = 1)
+```
+
+Check dimentions of training and testing dataset are the same
+
+```{r}
+# Check if dimentions are the same
+ncol(training_dataset)
+ncol(testing_dataset)
+```
+
+
+### Train the model on the data
+
+with k = 35 emplirically determined as close to sqrt(nrow(training_dataset)))
+
+```{r}
+testing_dataset_preditions <- knn(train = training_dataset, test = testing_dataset,
+                                  cl = training_dataset_outcome, k = 35)
+```
+
+
+### Evaluate model performance
+
+```{r}
+CrossTable(x = testing_dataset_preditions, y = testing_dataset_outcome, prop.chisq = FALSE)
+```
+
+Reviewing the confusion table we can tell that the classification accuracy of the model is approx ~95%.
+
+### Summary
+
+The objective of this homework was to implement kNN algorithm for prediction of employee income level identified in the source data as the IncomeLevel categorical variable with 2 levels High and Low (classification). 
+
+The kNN algorithm stores training data and matches unlabled test examples to the most similar records in the training set using Euclidean distance (it does not do any learning). The unlabled examples are assigned the label of its neighbors. Because we know the the actual category of observation in the test dataset we can evaluate performance of the kNN model.
+
+Considering Income Level "High" as a positive class and "Low" as a negative class. The top-left cell in the confusion table above indicates true-positives (TP). These 187 of 296 are cases where the Income Level was High and the k-NN algorithm correctly identified it as such. The bottom-right cell indicates true-negative results (TN), where the classifier and the pre-determined Income Level agree that the level is Low (96 of 296).
+
+The 8 examples where lower-left cell of the table are false-negative results (FN) i.e. results where the predicted value was Low but the Income Level was actually High (type 2 error).
+
+The top-right cell contains 5 examples of false-positives (FP) i.e. values that k-NN algorithm classified as High but in reality were Low (type 1 error).
+
+A total of 13 out of 296 (~5%) of income level was incorrectly classified by the k-NN algorithm (error rate).
+
+Sensitivity (true positive rate) = TP / (TP + FN) = 187 / 195 = ~0.96
+ 
+Specificity (true negative rate) = TN / (TN + FP) = 96 / 101 = ~0.95
+ 
+Classification accuracy of the model is ~95% (283 out of 296) which is relatively good considering simplicity of the algorithm.

@@ -36,5 +36,3 @@
 # Objectives
 If you want to learn the fundamentals of machine learning and use R to build, evaluate or deploy machine learning models, then this course is geared to your needs. This course is also designed for scientists, engineers, business analysts and researchers who want to explore and analyze data and then present their findings in well-formatted textual and graphical forms.
 
-# URL
-https://extension.berkeley.edu/search/publicCourseSearchDetails.do?method=load&courseId=17483923#outline
